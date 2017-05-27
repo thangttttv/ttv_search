@@ -91,7 +91,7 @@ public class UTF8Tool {
     }
     
     public static void main(String[] args) {
-      	System.out.println(UTF8Tool.coDau2KoDau("Nữ sinh cởi quần khoe hàng"));
+      	System.out.println(UTF8Tool.coDau2KoDau("TRUNG DỨC"));
     	System.out.println(VietnameseUtil.removeVietnameseAccent("Nữ sinh cởi quần khoe hàng"));
     	System.out.println(AccentRemover.removeAccent("Nữ sinh cởi quần khoe hàng"));
     	Character codePoint = new Character('a');

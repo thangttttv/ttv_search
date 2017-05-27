@@ -49,8 +49,8 @@ public class ProductIndex {
 			  Field idField = new Field("id", product.id+"", TextField.TYPE_STORED);
 	          doc.add(idField);
 	         
-	          product.title = StringTool.stripLucene(product.title);
-	          product.description = StringTool.stripLucene(product.description);
+	          product.title = StringTool.stripLucene(product.title.toLowerCase());
+	          product.description = StringTool.stripLucene(product.description.toLowerCase());
 	          String _title = UTF8Tool.coDau2KoDau(product.title);
 	          String _description = UTF8Tool.coDau2KoDau(product.description);
 	          
@@ -58,12 +58,28 @@ public class ProductIndex {
 	          doc.add(new Field("_title", _title, TextField.TYPE_STORED));
 	          doc.add(new Field("description", product.description, TextField.TYPE_STORED));
 	          doc.add(new Field("_description", _description, TextField.TYPE_STORED));
-	        
+	         
+	          
+	          if(!StringTool.isEmptyOrNul(product.wish_swap))
+				{
+	        	  product.wish_swap = StringTool.stripLucene(product.wish_swap);
+					String arrtags[] = product.wish_swap.split(",");
+					for (String tag : arrtags) {
+						doc.add(new Field("wish_swap", tag.trim(), TextField.TYPE_NOT_STORED));
+					}
+					// tags English
+					arrtags = UTF8Tool.coDau2KoDau(product.wish_swap.trim().toLowerCase()).split(",");
+					for (String string : arrtags) {
+						doc.add(new Field("wish_swap", string.trim(), TextField.TYPE_NOT_STORED));
+					}
+					
+				}
+	          
+	          
 	          doc.add(new StringField("image", product.image, Field.Store.YES));
 	          doc.add(new StringField("image_size", product.image_size, Field.Store.YES));
 	          doc.add(new StringField("image", product.image, Field.Store.YES));
 	          doc.add(new StringField("cate_id", String.valueOf(product.cate_id), Field.Store.YES));
-	          System.out.println("product.cate_parent_id"+product.cate_parent_id);
 	          doc.add(new StringField("cate_parent_id", String.valueOf(product.cate_parent_id), Field.Store.YES));
 	          
 	          doc.add(new StringField("sta_comment", String.valueOf(product.sta_comment), Field.Store.YES));
@@ -172,15 +188,15 @@ public class ProductIndex {
 	
 	
 	public static void main(String[] args) {
-		/*String log_path = "C:/Projects/index/product/log/logIndexProduct.txt";
+		String log_path = "C:/Projects/index/product/log/logIndexProduct.txt";
 		String pid_Path = "C:/Projects/index/product/log/pidIndexProduct.txt";
 		ProductIndex  productIndex = new ProductIndex("C:/Projects/index/product/", pid_Path,log_path);
-		productIndex.indexProduct();*/
+		productIndex.indexProduct();
 		
-		String log_path = "/home/search/product/log/logIndexProduct.txt";
+		/*String log_path = "/home/search/product/log/logIndexProduct.txt";
 		String pid_Path = "/home/search/product/log/pidIndexProduct.txt";
 		
 		ProductIndex  productIndex = new ProductIndex("/home/search/product/", pid_Path,log_path);
-		productIndex.indexProduct();
+		productIndex.indexProduct();*/
 	}
 }

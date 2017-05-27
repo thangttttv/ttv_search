@@ -2,12 +2,12 @@ package com.ttv.search;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -33,6 +33,8 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
 import com.ttv.dao.Product;
+import com.ttv.dao.ProductDAO;
+import com.ttv.dao.User;
 import com.ttv.util.LatLngUtil;
 import com.ttv.util.ProductComparator;
 import com.ttv.util.ProductRecommentComparator;
@@ -65,21 +67,21 @@ public class ProductSearch {
 			
 			if(!StringTool.isEmptyOrNul(keyword))
 			{
-				keyword = StringTool.stripLucene(keyword);
+				keyword = StringTool.stripLucene(keyword.toLowerCase());
 				BooleanQuery blqueryK = new BooleanQuery();	 
 				 
 				HashMap<String,Float> boots = new HashMap<String, Float>();
 				boots.put("title", 2.0f);
 				boots.put("_title", 2.0f);
 				
-				BooleanQuery queryKeyword = new BooleanQuery();	
+				/*BooleanQuery queryKeyword = new BooleanQuery();	
 				
 				Query queryTitleF = new PrefixQuery(new Term("title",keyword));
 			    Query queryTitle_F = new PrefixQuery(new Term("_title",keyword));
 			    queryKeyword.add(queryTitleF,BooleanClause.Occur.SHOULD);
 			    queryKeyword.add(queryTitle_F,BooleanClause.Occur.SHOULD);
 				//query.add(queryKeyword, BooleanClause.Occur.MUST);
-			    blqueryK.add(queryKeyword, BooleanClause.Occur.SHOULD);
+			    blqueryK.add(queryKeyword, BooleanClause.Occur.SHOULD);*/
 				keyword = keyword.trim()+"*";
 				
 				QueryParser queryp  = new MultiFieldQueryParser(Version.LUCENE_4_9, new
@@ -191,9 +193,10 @@ public class ProductSearch {
 			}else{
 				List<Product> productList = new ArrayList<Product>();
 				TopDocs topDocs = searcher.search(query, 500);
-				ScoreDoc scoreDoc  = null;	
+				ScoreDoc scoreDoc  = null;
 				int i = 0;
-				while (i < topDocs.totalHits) {
+				int total = topDocs.totalHits>500?500:topDocs.totalHits;
+				while (i < total) {
 					scoreDoc = topDocs.scoreDocs[i];	
 					product = new Product();
 					product.id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("id"));
@@ -237,7 +240,7 @@ public class ProductSearch {
 				while (i < end) {
 					product = kList.get(i);
 					productList.add(product);
-					System.out.println(product.title+", KC:"+product.distance+", cate_id:"+product.cate_id);
+					System.out.println("sort-->"+product.title+", KC:"+product.distance+", cate_id:"+product.cate_id);
 					i++;
 				}
 				return productList;
@@ -256,7 +259,6 @@ public class ProductSearch {
 		List<Product> kList = new ArrayList<Product>();
 		List<Product> productList = new ArrayList<Product>();
 		Product product = null;
-		StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
 		int[] arrIndexRank = new int[20];
 		int i = 0;int j = 20;
 		while(i<20){
@@ -268,35 +270,23 @@ public class ProductSearch {
 			IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(index_path)));
 			IndexSearcher searcher = new IndexSearcher(reader);
 			
-			String[] arrKeyword = keywords.split(",");
+			String[] arrKeyword = keywords.toLowerCase().split(",");
 			
 			if(!StringTool.isEmptyOrNul(keywords))
 			{
-				HashMap<String,Float> boots = new HashMap<String, Float>();
-				boots.put("title", 2.0f);
-				boots.put("_title", 2.0f);
 				
-				BooleanQuery blqueryK = new BooleanQuery();	 
-				QueryParser queryp  = new MultiFieldQueryParser(Version.LUCENE_4_9, new
-						String[] {"title","_title"}, analyzer,boots);
-				queryp.setDefaultOperator(QueryParser.AND_OPERATOR);
-				queryp.setAllowLeadingWildcard(true);
-				
-				
+				BooleanQuery queryKeyword = new BooleanQuery();	
 				for (String keyword : arrKeyword) {
-					keyword = StringTool.stripLucene(keyword);
-					keyword = keyword.trim()+"*";
-					Query queryTitle = queryp.parse(keyword);
-					blqueryK.add(queryTitle, BooleanClause.Occur.SHOULD);
+					String arrK[] = keyword.split(" ");	
+					for (String itemK : arrK) {
+					Query queryTitleF = new PrefixQuery(new Term("title",itemK));
+				    Query queryTitle_F = new PrefixQuery(new Term("_title",itemK));
+				    queryKeyword.add(queryTitleF,BooleanClause.Occur.SHOULD);
+				    queryKeyword.add(queryTitle_F,BooleanClause.Occur.SHOULD);
+					}
 				}
-				query.add(blqueryK, BooleanClause.Occur.MUST);
+				query.add(queryKeyword, BooleanClause.Occur.MUST);
 			}
-			
-			/*double priceF = (price - 500000)>0?(price - 500000):0;
-			double priceT = price + 5500000;*/
-			
-			/*Query qPrice = NumericRangeQuery.newDoubleRange("price",priceF,priceT, true, true);
-			query.add(qPrice, BooleanClause.Occur.MUST);*/
 			
 			Query qUser = NumericRangeQuery.newIntRange("user_id",user_id,user_id, true, true);
 			query.add(qUser, BooleanClause.Occur.MUST_NOT);
@@ -352,7 +342,7 @@ public class ProductSearch {
 				rank_price =  rank_price>=0?rank_price:(-1*rank_price);
 				rank_price = rank_price > 19? 19:rank_price ;
 				
-				System.out.println(product.title+">"+rank_distance+":"+rank_price+":"+":time"+rank_time);
+				//System.out.println(product.title+">"+rank_distance+":"+rank_price+":"+":time"+rank_time);
 				
 				double rank_index =arrIndexRank[rank_distance]*2+arrIndexRank[rank_time]+arrIndexRank[rank_price]*2;
 				product.index = rank_index;
@@ -380,7 +370,7 @@ public class ProductSearch {
 				i++;
 			}
 			
-		} catch (IOException | ParseException e) {
+		} catch (IOException  e) {
 			e.printStackTrace();
 		}
 	
@@ -392,7 +382,6 @@ public class ProductSearch {
 		List<Product> kList = new ArrayList<Product>();
 		List<Product> productList = new ArrayList<Product>();
 		Product product = null;
-		StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_4_9);
 		int[] arrIndexRank = new int[20];
 		int i = 0;int j = 20;
 		while(i<20){
@@ -404,35 +393,23 @@ public class ProductSearch {
 			IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(index_path)));
 			IndexSearcher searcher = new IndexSearcher(reader);
 			
-			String[] arrKeyword = keywords.split(",");
+			String[] arrKeyword = keywords.toLowerCase().split(",");
 			
 			if(!StringTool.isEmptyOrNul(keywords))
 			{
-				HashMap<String,Float> boots = new HashMap<String, Float>();
-				boots.put("title", 2.0f);
-				boots.put("_title", 2.0f);
-				
-				BooleanQuery blqueryK = new BooleanQuery();	 
-				QueryParser queryp  = new MultiFieldQueryParser(Version.LUCENE_4_9, new
-						String[] {"title","_title"}, analyzer,boots);
-				queryp.setDefaultOperator(QueryParser.AND_OPERATOR);
-				queryp.setAllowLeadingWildcard(true);
-				
-				
+				BooleanQuery queryKeyword = new BooleanQuery();	
 				for (String keyword : arrKeyword) {
-					keyword = StringTool.stripLucene(keyword);
-					keyword = keyword.trim()+"*";
-					Query queryTitle = queryp.parse(keyword);
-					blqueryK.add(queryTitle, BooleanClause.Occur.SHOULD);
+					String arrK[] = keyword.split(" ");	
+					for (String itemK : arrK) {
+					Query queryTitleF = new PrefixQuery(new Term("title",itemK));
+				    Query queryTitle_F = new PrefixQuery(new Term("_title",itemK));
+				    queryKeyword.add(queryTitleF,BooleanClause.Occur.SHOULD);
+				    queryKeyword.add(queryTitle_F,BooleanClause.Occur.SHOULD);
+					}
 				}
-				query.add(blqueryK, BooleanClause.Occur.MUST);
+				query.add(queryKeyword, BooleanClause.Occur.MUST);
+				
 			}
-			
-			/*double priceF = (price - 500000)>0?(price - 500000):0;
-			double priceT = price + 5500000;
-			
-			Query qPrice = NumericRangeQuery.newDoubleRange("price",priceF,priceT, true, true);
-			query.add(qPrice, BooleanClause.Occur.MUST);*/
 			
 			Query qUser = NumericRangeQuery.newIntRange("user_id",user_id,user_id, true, true);
 			query.add(qUser, BooleanClause.Occur.MUST_NOT);
@@ -520,7 +497,7 @@ public class ProductSearch {
 				i++;
 			}
 			
-		} catch (IOException | ParseException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	
@@ -541,7 +518,7 @@ public class ProductSearch {
 			
 			if(!StringTool.isEmptyOrNul(keyword))
 			{
-				keyword = StringTool.stripLucene(keyword);
+				keyword = StringTool.stripLucene(keyword.toLowerCase());
 				 
 				 
 				HashMap<String,Float> boots = new HashMap<String, Float>();
@@ -603,7 +580,7 @@ public class ProductSearch {
 			TopDocs topDocs = searcher.search(query, 500);
 			ScoreDoc scoreDoc  = null;	
 			int i = 0;
-			while (i < topDocs.totalHits) {
+			while (i < topDocs.scoreDocs.length) {
 				scoreDoc = topDocs.scoreDocs[i];	
 				product = new Product();
 				product.id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("id"));
@@ -659,15 +636,81 @@ public class ProductSearch {
 		return productList;
 	}
 	
+	public List<User> queryListUserWishProduct(String keyword, int user_id) {
+		BooleanQuery query = new BooleanQuery();	
+		List<User> users = new ArrayList<User>();
+		Product product = null;
+		ProductDAO productDAO = new ProductDAO();
+		HashMap<Integer,User> mapUser = new HashMap<Integer,User>();
+		try {
+			IndexReader reader = DirectoryReader.open(FSDirectory.open(new File(index_path)));
+			IndexSearcher searcher = new IndexSearcher(reader);
+			
+			if(!StringTool.isEmptyOrNul(keyword))
+			{
+				keyword = StringTool.stripLucene(keyword.toLowerCase());
+				String arrK[] = keyword.split(" ");
+				BooleanQuery queryKeyword = new BooleanQuery();	
+				for (String itemK : arrK) {
+					Query queryTitleF = new PrefixQuery(new Term("wish_swap",itemK));
+				    queryKeyword.add(queryTitleF,BooleanClause.Occur.SHOULD);
+				}
+				
+				query.add(queryKeyword, BooleanClause.Occur.MUST);
+			}
+			
+			
+			Query qUser = NumericRangeQuery.newIntRange("user_id",user_id,user_id, true, true);
+			query.add(qUser, BooleanClause.Occur.MUST_NOT);
+			
+			System.out.println("query:"+query.toString());
+			
+			Sort sort = new Sort(new SortField("id", Type.INT, true));
+			TopDocs topDocs = searcher.search(query, 30,sort);
+			ScoreDoc scoreDoc  = null;	
+			int i = 0;
+			while (i < topDocs.scoreDocs.length) {
+				scoreDoc = topDocs.scoreDocs[i];	
+				product = new Product();
+				product.id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("id"));
+				product.user_id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("user_id"));
+				product.title = searcher.doc(scoreDoc.doc).get("title");
+				product.cate_id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("cate_id"));
+				product.cate_parent_id = Integer.parseInt(searcher.doc(scoreDoc.doc).get("cate_parent_id"));
+				
+				User user = productDAO.getUserById(product.user_id);
+				if(user!=null){
+					mapUser.put(new Integer(user.id), user);
+					System.out.println(product.title+":"+product.user_id+"-"+user.fullname+":"+product.cate_id);
+				}
+				i++;
+			}
+			
+			if(mapUser.size()>0){
+				Iterator<User> iterator = mapUser.values().iterator();
+				while(iterator.hasNext()){
+					users.add(iterator.next());
+				}
+			}
+			
+			
+		} catch (IOException  e) {
+			e.printStackTrace();
+		}
+	
+		return users;
+	}
+	
 	
 	public int getTotalHit() {
 		return totalHit;
 	}
 	
 	public static void main(String[] args) {
-		ProductSearch  gameSearch = new ProductSearch("C:\\Projects\\index\\product\\");
-		gameSearch.query("",0,0,0,21.0187516,105.7752809 ,5,4, 1,1000);
-		//gameSearch.queryProductRecommend("Test,chuot",230,50000000,21.0305962, 105.7862149,1, 100) ;
+		ProductSearch  gameSearch = new ProductSearch("C:/Projects/index/product");
+		//gameSearch.query("iphone",0,0,0,21.0187516,105.7752809 ,10,4, 1,1000);
+		//gameSearch.queryListUserWishProduct("dien thoai samsung",1);
+		gameSearch.queryProductRecommend("xe may",1,1200000,21.0305962, 105.7862149,1, 100) ;
 		//gameSearch.querySortNearest("iphone",12,0,1000000,0,0,0,1, 10);
 		
 	}

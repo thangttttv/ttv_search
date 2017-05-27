@@ -588,7 +588,7 @@ public class VietnameseUtil {
   
   public static void main(String[] args) {
 	  try {
-		String str = new String("Chàng ngóc bem gái".getBytes(),"ISO8859_1");
+		String str = new String("TRUNG DỨC".getBytes(),"ISO8859_1");
 		String txt = VietnameseUtil.change(str);
 			System.out.println(str);
 			System.out.println(txt);
